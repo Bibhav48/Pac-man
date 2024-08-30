@@ -15,6 +15,7 @@ let score = 0;
 let lives = 3;
 let gameInterval;
 let enemyInterval;
+let resetting;
 
 // Player = 2, Wall = 1, Enemy = 3, Point = 0
 let maze = [
@@ -31,9 +32,9 @@ let maze = [
 ];
 
 let enemies = [
-    { x: 8, y: 1 },
-    { x: 5, y: 6 },
-    { x: 1, y: 8 }
+    { x: 8, y: 1, prev: 0 },
+    { x: 5, y: 6, prev: 0 },
+    { x: 1, y: 8, prev: 0 }
 ];
 
 // Populates the maze in the HTML
@@ -57,8 +58,12 @@ function populateMaze() {
                 case 3:
                     block.classList.add('enemy');
                     break;
-                default:
+                case 0:
                     block.classList.add('point');
+                    block.style.height = '1vh';
+                    block.style.width = '1vh';
+                    break
+                default:
                     block.style.height = '1vh';
                     block.style.width = '1vh';
             }
@@ -70,8 +75,13 @@ function populateMaze() {
 
 // Player movement and grid-based collision detection
 function movePlayer() {
+    if (resetting){
+        console.log('resetting');
+        return;
+    }
     let newX = playerX;
     let newY = playerY;
+
 
     if (upPressed) newY--;
     else if (downPressed) newY++;
@@ -82,13 +92,13 @@ function movePlayer() {
     if (maze[newY][newX] !== 1) {
         if (maze[newY][newX] === 3) {
             loseLife();
+            return;
         } else if (maze[newY][newX] === 0) {
             score += 10;
             scoreElement.textContent = score;
         }
-
         // Update maze and player position
-        maze[playerY][playerX] = 0;
+        maze[playerY][playerX] = -1; // Remove dot from old position
         maze[newY][newX] = 2;
         playerX = newX;
         playerY = newY;
@@ -115,6 +125,7 @@ function updatePlayerMouthDirection() {
 
 // Manage player lives
 function loseLife() {
+    resetting = true;
     lives--;
     livesElement[lives].style.visibility = 'hidden';
     if (lives <= 0) {
@@ -126,15 +137,20 @@ function loseLife() {
 
 // Reset player position after losing a life
 function resetPlayerPosition() {
-    maze[playerY][playerX] = 0;
+    maze[playerY][playerX] = -1;
     playerX = 1;
     playerY = 1;
     maze[playerY][playerX] = 2;
     populateMaze();
+    setTimeout(()=>{resetting = false; console.log('resetting done');}, 500);
 }
 
 // Move enemies randomly
 function moveEnemies() {
+    
+    if (resetting){
+        return;
+    }
     enemies.forEach(enemy => {
         let directions = [
             { x: 0, y: -1 }, // Up
@@ -148,7 +164,8 @@ function moveEnemies() {
         let newY = enemy.y + randomDirection.y;
 
         if (maze[newY][newX] !== 1 && maze[newY][newX] !== 3) {
-            maze[enemy.y][enemy.x] = 0; // Remove enemy from old position
+            maze[enemy.y][enemy.x] = enemy.prev; // Add previous state to old position
+            enemy.prev = maze[newY][newX]===2?-1:maze[newY][newX];
             enemy.x = newX;
             enemy.y = newY;
             maze[enemy.y][enemy.x] = 3; // Place enemy in new position
@@ -171,7 +188,6 @@ startButton.addEventListener('click', () => {
 
 // End the game
 function endGame(message) {
-    clearInterval(gameInterval);
     clearInterval(enemyInterval);
     alert(message);
     const playerName = prompt(`${message}\nPlease enter your name:`);
@@ -204,8 +220,9 @@ function displayLeaderboard() {
 
 // Start the game loop
 function startGame() {
-    gameInterval = setInterval(movePlayer, 200); // Adjust speed as needed
-    enemyInterval = setInterval(moveEnemies, 500); // Enemies move every 500ms
+    document.addEventListener('keydown', keyDown);
+    document.addEventListener('keyup', keyUp);
+    enemyInterval = setInterval(moveEnemies, 500);
 }
 
 
@@ -220,6 +237,7 @@ function keyUp(event) {
     } else if (event.key === 'ArrowRight') {
         rightPressed = false;
     }
+    movePlayer()    
 }
 
 function keyDown(event) {
@@ -232,10 +250,32 @@ function keyDown(event) {
     } else if (event.key === 'ArrowRight') {
         rightPressed = true;
     }
+    movePlayer()
 }
 
-document.addEventListener('keydown', keyDown);
-document.addEventListener('keyup', keyUp);
+
+
+// Button Events
+let lbttn = document.querySelector("#lbttn")
+let ubttn = document.querySelector("#ubttn")
+let rbttn = document.querySelector("#rbttn")
+let dbttn = document.querySelector("#dbttn")
+
+lbttn.addEventListener('mousedown', () => { leftPressed = true; movePlayer()});
+lbttn.addEventListener('mouseup', () => { leftPressed = false; });
+lbttn.addEventListener('mouseleave', () => { leftPressed = false; }); // Handle case where mouse leaves the button
+
+ubttn.addEventListener('mousedown', () => { upPressed = true; movePlayer()});
+ubttn.addEventListener('mouseup', () => { upPressed = false; });
+ubttn.addEventListener('mouseleave', () => { upPressed = false; }); // Handle case where mouse leaves the button
+
+rbttn.addEventListener('mousedown', () => { rightPressed = true; movePlayer()});
+rbttn.addEventListener('mouseup', () => { rightPressed = false; });
+rbttn.addEventListener('mouseleave', () => { rightPressed = false; }); // Handle case where mouse leaves the button
+
+dbttn.addEventListener('mousedown', () => { downPressed = true; movePlayer()});
+dbttn.addEventListener('mouseup', () => { downPressed = false; });
+dbttn.addEventListener('mouseleave', () => { downPressed = false; });
 
 // Initialize the maze on load
 populateMaze();
